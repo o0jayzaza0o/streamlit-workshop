@@ -1,41 +1,41 @@
+
 import streamlit as st
 import joblib
+import cv2
 import numpy as np
 from PIL import Image
 
-# Load model
-with open("svm_image_classifier_model.pkl", "rb") as f:
-    model = joblib.load(f)
+# --- โหลดโมเดล SVM ---
+model = joblib.load("svm_image_classifier_model.pkl")
 
-# Mapping from prediction to class name
-class_dict = {0: "Apple", 1: "Orange"}
+# --- สร้าง UI ---
+st.title("Fruit Classifier")
+st.write("อัปโหลดรูปภาพเพื่อทำนายว่าเป็น **แอปเปิ้ล** หรือ **ส้ม**")
 
-# UI
-st.title("🍎🍊 Fruit Classifier")
-st.write("Upload an image of a fruit (Apple or Orange) to classify it.")
+# dictionary แปลง class index เป็นชื่อ
+class_dict = {0: "แอปเปิ้ล", 1: "ส้ม"}
 
-# Upload image
+# --- อัปโหลดรูป ---
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
-    # Show uploaded image
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    # อ่านและแปลงเป็น RGB
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption='Uploaded Image', use_container_width=True)
 
-    # Resize and flatten the image
-    image = image.resize((100, 100))
-    image_array = np.array(image)
+    # ปุ่มทำนาย
+    if st.button("Predict"):
+        # --- แปลงรูปเป็น array ตามตอน train ---
+        image_array = np.array(image)
+        # ถ้า train ใช้ OpenCV default BGR ให้ convert
+        image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+        # Resize เป็น (100, 100) ตามตอน train
+        image_resized = cv2.resize(image_array, (100, 100))
+        # Flatten เป็น feature vector
+        image_flatten = image_resized.flatten().reshape(1, -1)
 
-    # Handle images with alpha channel (RGBA)
-    if image_array.shape[-1] == 4:
-        image_array = image_array[:, :, :3]  # Drop alpha channel
+        # --- ทำนาย ---
+        prediction = model.predict(image_flatten)[0]
+        prediction_name = class_dict[prediction]
 
-    # Flatten the image to 1D
-    image_array = image_array.flatten().reshape(1, -1)
-
-    # Predict
-    prediction = model.predict(image_array)[0]
-    prediction_name = class_dict.get(prediction, "Unknown")
-
-    # Show result
-    st.write(f"### 🧠 Prediction: **{prediction_name}**")
+        st.write(f"ผลการทำนาย: **{prediction_name}**")
